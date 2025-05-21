@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Aviation Delay Calculator</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .form-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .form-row input {
+      width: 80px;
+      margin-right: 10px;
+    }
+    .output { margin-top: 15px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>Aviation Delay Calculator</h2>
+  <form id="delayForm">
+    <div class="form-row">
+      <input type="time" id="STA" required />
+      <label for="STA">STA – Scheduled Time of Arrival</label>
+    </div>
+    <div class="form-row">
+      <input type="time" id="STD" required />
+      <label for="STD">STD – Scheduled Time of Departure</label>
+    </div>
+    <div class="form-row">
+      <input type="number" id="MTT" required />
+      <label for="MTT">MTT – Minimum Turnaround Time (in minutes)</label>
+    </div>
+    <div class="form-row">
+      <input type="time" id="ATA" required />
+      <label for="ATA">ATA – Actual Time of Arrival</label>
+    </div>
+
+    <div id="step2" style="display:none;">
+      <hr/>
+      <div class="form-row">
+        <input type="time" id="ATD" required />
+        <label for="ATD">ATD – Actual Time of Departure</label>
+      </div>
+      <div class="form-row">
+        <input type="time" id="ADC" required />
+        <label for="ADC">ADC – Actual Door Close</label>
+      </div>
+      <button type="button" onclick="calculateDelays()">Calculate Delays</button>
+    </div>
+  </form>
+
+  <div class="output" id="results"></div>
+
+  <script>
+    let ETD, ADCT;
+
+    function parseTime(str) {
+      let [h, m] = str.split(":");
+      return new Date(0, 0, 0, +h, +m);
+    }
+
+    function formatTime(date) {
+      return date.toTimeString().substring(0, 5);
+    }
+
+    function addMinutes(date, mins) {
+      return new Date(date.getTime() + mins * 60000);
+    }
+
+    function calculateETD_ADCT() {
+      const STA_val = document.getElementById("STA").value;
+      const STD_val = document.getElementById("STD").value;
+      const MTT_val = document.getElementById("MTT").value;
+      const ATA_val = document.getElementById("ATA").value;
+
+      if (!STA_val || !STD_val || !MTT_val || !ATA_val) return;
+
+      const STA = parseTime(STA_val);
+      const STD = parseTime(STD_val);
+      const MTT = parseInt(MTT_val);
+      const ATA = parseTime(ATA_val);
+
+      const ETD2 = ATA < STA ? addMinutes(STA, MTT) : addMinutes(ATA, MTT);
+      const ETD1 = ETD2 < STD ? STD : (ATA < STA ? addMinutes(STA, MTT) : addMinutes(ATA, MTT));
+      ETD = ETD1 > ETD2 ? ETD1 : ETD2;
+      ADCT = addMinutes(ETD, -2);
+
+      document.getElementById("step2").style.display = "block";
+
+      // Show ETD and ADCT immediately
+      document.getElementById("results").innerHTML = `
+        <p><strong>ETD:</strong> ${formatTime(ETD)}</p>
+        <p><strong>ADCT:</strong> ${formatTime(ADCT)}</p>
+      `;
+    }
+
+    function calculateDelays() {
+      const STD = parseTime(document.getElementById("STD").value);
+      const ATD = parseTime(document.getElementById("ATD").value);
+      const ADC = parseTime(document.getElementById("ADC").value);
+
+      const totalDelay = (ATD - STD) / 60000;
+      const sptMissBy = (ADC <= ADCT) ? 0 : (ADC - ADCT) / 60000;
+      const delay2 = sptMissBy > 0 ? sptMissBy : 0;
+      const delay3 = sptMissBy <= 0 ? 0 : Math.max(0, (ATD - ETD) / 60000 - delay2);
+      const delay1 = totalDelay - delay2 - delay3;
+
+      document.getElementById("results").innerHTML += `
+        <p><strong>Total Delay:</strong> ${totalDelay.toFixed(0)} minutes</p>
+        <p><strong>Delay 1:</strong> ${delay1.toFixed(0)} minutes</p>
+        <p><strong>Delay 2:</strong> ${delay2.toFixed(0)} minutes</p>
+        <p><strong>Delay 3:</strong> ${delay3.toFixed(0)} minutes</p>
+        <p><strong>SPT Miss By:</strong> ${sptMissBy.toFixed(0)} minutes</p>
+      `;
+    }
+
+    // Trigger first output when ATA is entered
+    document.getElementById("ATA").addEventListener("change", calculateETD_ADCT);
+  </script>
+</body>
+</html>
