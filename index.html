@@ -98,7 +98,7 @@
       gap: 8px;
     }
 
-    input {
+    input, select {
       width: 100%;
       padding: 12px;
       border: 1px solid var(--border);
@@ -186,6 +186,17 @@
 
     <div class="form-section">
       <h2>Flight Information</h2>
+
+      <!-- Airline Toggle -->
+      <div class="input-group">
+        <label for="airline">Select Airline</label>
+        <div class="input-wrapper">
+          <select id="airline" class="number-input">
+            <option value="KL">KL</option>
+            <option value="AF">AF</option>
+          </select>
+        </div>
+      </div>
 
       <div class="input-group">
         <label for="STA">Scheduled Time of Arrival (STA)</label>
@@ -321,11 +332,14 @@
       const STD = parseTime(document.getElementById("STD").value);
       const MTT = parseInt(document.getElementById("MTT").value) || 0;
       const ATA = parseTime(document.getElementById("ATA").value);
+      const airline = document.getElementById("airline").value;
 
       const ETD2 = ATA < STA ? addMinutes(STA, MTT) : addMinutes(ATA, MTT);
       const ETD1 = ETD2 < STD ? STD : (ATA < STA ? addMinutes(STA, MTT) : addMinutes(ATA, MTT));
       ETD = ETD1 > ETD2 ? ETD1 : ETD2;
-      ADCT = addMinutes(ETD, -2);
+
+      const adctOffset = airline === "AF" ? -3 : -2;
+      ADCT = addMinutes(ETD, adctOffset);
 
       document.getElementById("etd-result").textContent = formatTime(ETD);
       document.getElementById("adct-result").textContent = formatTime(ADCT);
