@@ -83,23 +83,20 @@
 
     .input-group {
       margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
     label {
-      display: block;
+      flex: 0 0 200px;
       font-weight: 500;
-      margin-bottom: 6px;
       font-size: 0.9rem;
     }
 
-    .input-wrapper {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
     input, select {
-      width: 100%;
+      flex: 1;
       padding: 12px;
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -171,9 +168,17 @@
       .container {
         max-width: 480px;
       }
+    }
 
-      .input-wrapper {
-        gap: 12px;
+    @media (max-width: 480px) {
+      .input-group {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      label {
+        flex: none;
+        width: 100%;
       }
     }
   </style>
@@ -187,43 +192,32 @@
     <div class="form-section">
       <h2>Flight Information</h2>
 
-      <!-- Airline Toggle -->
       <div class="input-group">
         <label for="airline">Select Airline</label>
-        <div class="input-wrapper">
-          <select id="airline" class="number-input">
-            <option value="KL">KL</option>
-            <option value="AF">AF</option>
-          </select>
-        </div>
+        <select id="airline" class="number-input">
+          <option value="KL">KL</option>
+          <option value="AF">AF</option>
+        </select>
       </div>
 
       <div class="input-group">
         <label for="STA">Scheduled Time of Arrival (STA)</label>
-        <div class="input-wrapper">
-          <input type="text" id="STA" pattern="\d{4}" required placeholder="HHMM" class="time-input">
-        </div>
+        <input type="text" id="STA" pattern="\d{4}" required placeholder="HHMM" class="time-input">
       </div>
 
       <div class="input-group">
         <label for="STD">Scheduled Time of Departure (STD)</label>
-        <div class="input-wrapper">
-          <input type="text" id="STD" pattern="\d{4}" required placeholder="HHMM" class="time-input">
-        </div>
+        <input type="text" id="STD" pattern="\d{4}" required placeholder="HHMM" class="time-input">
       </div>
 
       <div class="input-group">
         <label for="MTT">Minimum Turnaround Time (MTT in minutes)</label>
-        <div class="input-wrapper">
-          <input type="number" id="MTT" required class="number-input">
-        </div>
+        <input type="number" id="MTT" required class="number-input">
       </div>
 
       <div class="input-group">
         <label for="ATA">Actual Time of Arrival (ATA)</label>
-        <div class="input-wrapper">
-          <input type="text" id="ATA" pattern="\d{4}" required placeholder="HHMM" class="time-input">
-        </div>
+        <input type="text" id="ATA" pattern="\d{4}" required placeholder="HHMM" class="time-input">
       </div>
 
       <button type="button" onclick="calculateETD_ADCT()">Calculate ETD/ADCT</button>
@@ -245,16 +239,12 @@
 
       <div class="input-group">
         <label for="ADC">Actual Door Close (ADC)</label>
-        <div class="input-wrapper">
-          <input type="text" id="ADC" pattern="\d{4}" required placeholder="HHMM" class="time-input">
-        </div>
+        <input type="text" id="ADC" pattern="\d{4}" required placeholder="HHMM" class="time-input">
       </div>
 
       <div class="input-group">
         <label for="ATD">Actual Time of Departure (ATD)</label>
-        <div class="input-wrapper">
-          <input type="text" id="ATD" pattern="\d{4}" required placeholder="HHMM" class="time-input">
-        </div>
+        <input type="text" id="ATD" pattern="\d{4}" required placeholder="HHMM" class="time-input">
       </div>
 
       <button type="button" onclick="calculateDelays()">Calculate Delays</button>
@@ -288,27 +278,26 @@
     let ETD, ADCT;
 
     function parseTime(str) {
-      if (!str || str.length !== 4) return new Date(NaN);
+      if (!str || str.length !== 4) return NaN;
       let h = parseInt(str.substring(0, 2), 10);
       let m = parseInt(str.substring(2, 4), 10);
-      if (isNaN(h)) h = 0;
-      if (isNaN(m)) m = 0;
-      return new Date(0, 0, 0, h, m);
+      return isNaN(h) || isNaN(m) ? NaN : h * 60 + m;
     }
 
-    function formatTime(date) {
-      if (isNaN(date.getTime())) return "Invalid time";
-      return date.toTimeString().substring(0, 5);
-    }
+    function formatMinutes(minutes) {
+      if (isNaN(minutes)) return "Invalid time";
+      minutes = (minutes + 1440) % 1440;
+      
 
-    function addMinutes(date, mins) {
-      return new Date(date.getTime() + mins * 60000);
+
+      let h = Math.floor(minutes / 60);
+      let m = minutes % 60;
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
     }
 
     function validateInputs() {
       const inputs = ['STA', 'STD', 'ATA'];
       let valid = true;
-
       inputs.forEach(id => {
         const el = document.getElementById(id);
         if (!el.value.match(/^\d{4}$/)) {
@@ -318,7 +307,6 @@
           el.style.borderColor = '';
         }
       });
-
       return valid;
     }
 
@@ -334,18 +322,24 @@
       const ATA = parseTime(document.getElementById("ATA").value);
       const airline = document.getElementById("airline").value;
 
-      const ETD2 = ATA < STA ? addMinutes(STA, MTT) : addMinutes(ATA, MTT);
-      const ETD1 = ETD2 < STD ? STD : (ATA < STA ? addMinutes(STA, MTT) : addMinutes(ATA, MTT));
-      ETD = ETD1 > ETD2 ? ETD1 : ETD2;
+      const STA_MTT = STA + MTT;
+      const ATA_MTT = ATA + MTT;
 
-      const adctOffset = airline === "AF" ? -3 : -2;
-      ADCT = addMinutes(ETD, adctOffset);
+      const ETD2 = (ATA < STA) ? STA_MTT : ATA_MTT;
+      const ETD1 = (ETD2 < STD) ? STD : ((ATA < STA) ? STA_MTT : ATA_MTT);
+      ETD = Math.max(ETD1, ETD2);
 
-      document.getElementById("etd-result").textContent = formatTime(ETD);
-      document.getElementById("adct-result").textContent = formatTime(ADCT);
+      const airlineOffsets = {
+        AF: -3,
+        KL: -2
+      };
+      const adctOffset = airlineOffsets[airline] || -2;
+      ADCT = ETD + adctOffset;
+
+      document.getElementById("etd-result").textContent = formatMinutes(ETD);
+      document.getElementById("adct-result").textContent = formatMinutes(ADCT);
       document.getElementById("step1results").style.display = "block";
       document.getElementById("step2").style.display = "block";
-
       document.getElementById("step1results").scrollIntoView({ behavior: 'smooth' });
     }
 
@@ -354,26 +348,35 @@
       const ATD = parseTime(document.getElementById("ATD").value);
       const ADC = parseTime(document.getElementById("ADC").value);
 
-      if (isNaN(STD.getTime()) || isNaN(ATD.getTime()) || isNaN(ADC.getTime())) {
+      if (isNaN(STD) || isNaN(ATD) || isNaN(ADC)) {
         alert('Invalid time format');
         return;
       }
 
-      const totalDelay = (ATD - STD) / 60000;
-      const sptMissBy = (ADC <= ADCT) ? 0 : (ADC - ADCT) / 60000;
-      const delay2 = sptMissBy > 0 ? sptMissBy : 0;
-      const delay3 = sptMissBy <= 0 ? 0 : Math.max(0, (ATD - ETD) / 60000 - delay2);
+      let totalDelay = ATD - STD;
+      if (totalDelay < 0) totalDelay += 1440;
+
+      let sptMissBy = ADC - ADCT;
+      if (sptMissBy < 0) sptMissBy = 0;
+
+      const delay2 = sptMissBy;
+      let delay3 = Math.max(0, (ATD - ETD) - delay2);
+      if (ATD < ETD) delay3 = 0;
+
       const delay1 = totalDelay - delay2 - delay3;
 
-      document.getElementById("total-delay").textContent = `${Math.max(0, totalDelay).toFixed(0)} minutes`;
-      document.getElementById("delay1").textContent = `${Math.max(0, delay1).toFixed(0)} minutes`;
-      document.getElementById("delay2").textContent = `${Math.max(0, delay2).toFixed(0)} minutes`;
-      document.getElementById("delay3").textContent = `${Math.max(0, delay3).toFixed(0)} minutes`;
-      document.getElementById("spt-miss").textContent = `${Math.max(0, sptMissBy).toFixed(0)} minutes`;
+      document.getElementById("total-delay").textContent = `${Math.max(0, totalDelay)} minutes`;
+      document.getElementById("delay1").textContent = `${Math.max(0, delay1)} minutes`;
+      document.getElementById("delay2").textContent = `${delay2} minutes`;
+      document.getElementById("delay3").textContent = `${delay3} minutes`;
+      document.getElementById("spt-miss").textContent = `${sptMissBy} minutes`;
       document.getElementById("results").style.display = "block";
-
       document.getElementById("results").scrollIntoView({ behavior: 'smooth' });
     }
   </script>
 </body>
 </html>
+
+
+
+
